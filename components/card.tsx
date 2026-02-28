@@ -112,17 +112,6 @@ export default function CardComponent({ card, onRefresh }: CardProps) {
             >
               {config.label}
             </span>
-            {card.priority <= 1 && (
-              <span
-                className="text-xs font-medium px-2 py-0.5 rounded-md"
-                style={{
-                  backgroundColor: colors.tags.high.bg,
-                  color: colors.tags.high.text,
-                }}
-              >
-                High
-              </span>
-            )}
           </div>
 
           {/* ── Title ── */}
