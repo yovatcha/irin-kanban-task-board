@@ -72,11 +72,13 @@ async function handleTextMessage(event: MessageEvent) {
       },
     });
 
-    const formattedTasks = tasks.map((task) => ({
-      id: task.id,
-      text: task.text,
-      cardTitle: task.card.title,
-    }));
+    const formattedTasks = tasks.map(
+      (task: { id: any; text: any; card: { title: any } }) => ({
+        id: task.id,
+        text: task.text,
+        cardTitle: task.card.title,
+      }),
+    );
 
     // small personality touch
     await lineClient.replyMessage(event.replyToken, {
