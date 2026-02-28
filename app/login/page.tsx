@@ -1,10 +1,17 @@
 import { Button } from "@/components/ui/button";
 import { LayoutGrid } from "lucide-react";
+import { headers } from "next/headers";
 
 const LINE_LOGIN_CHANNEL_ID = process.env.LINE_LOGIN_CHANNEL_ID!;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const headersList = await headers();
+  const host = headersList.get("host") || "localhost:3000";
+  const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
+
+  // Use environment variable if set, otherwise fallback to the current dynamic host
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+
   const lineLoginUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_LOGIN_CHANNEL_ID}&redirect_uri=${encodeURIComponent(
     `${APP_URL}/api/auth/line`,
   )}&state=random_state&scope=profile%20openid`;

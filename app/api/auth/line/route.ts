@@ -4,12 +4,12 @@ import { createSession } from "@/lib/auth";
 
 const LINE_LOGIN_CHANNEL_ID = process.env.LINE_LOGIN_CHANNEL_ID!;
 const LINE_LOGIN_CHANNEL_SECRET = process.env.LINE_LOGIN_CHANNEL_SECRET!;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const state = searchParams.get("state");
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
 
   if (!code) {
     return NextResponse.json({ error: "No code provided" }, { status: 400 });
