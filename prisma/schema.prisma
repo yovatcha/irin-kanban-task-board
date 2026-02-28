@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  lineUserId    String          @unique
+  name          String
+  avatarUrl     String?
+  createdAt     DateTime        @default(now())
+  assignedTasks ChecklistItem[]
+}
+
+model Board {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  lanes     Lane[]
+}
+
+model Lane {
+  id      String @id @default(cuid())
+  boardId String
+  title   String
+  order   Int
+  cards   Card[]
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+}
+
+model Card {
+  id          String          @id @default(cuid())
+  laneId      String
+  title       String
+  description String?
+  priority    Priority        @default(MEDIUM)
+  order       Int
+  lane        Lane            @relation(fields: [laneId], references: [id], onDelete: Cascade)
+  checklists  ChecklistItem[]
+
+  @@index([laneId])
+}
+
+model ChecklistItem {
+  id               String  @id @default(cuid())
+  cardId           String
+  text             String
+  completed        Boolean @default(false)
+  assignedToUserId String?
+  assignedTo       User?   @relation(fields: [assignedToUserId], references: [id])
+  card             Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+  @@index([assignedToUserId])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
