@@ -1,9 +1,9 @@
+/* ── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* ── Google Fonts ─────────────────────────────────────────────────────────── */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 /* ── Design System CSS Variables (Dark Theme by default) ─────────────────── */
 @layer base {
@@ -69,6 +69,18 @@
     font-size: 14px;
     line-height: 1.5;
   }
+  /* Smooth transitions on interactive elements */
+  button,
+  a,
+  [role="button"] {
+    transition: all 150ms ease;
+  }
+
+  /* Focus visible ring */
+  :focus-visible {
+    outline: 2px solid var(--accent-amber);
+    outline-offset: 2px;
+  }
 }
 
 /* ── Custom Scrollbar ─────────────────────────────────────────────────────── */
@@ -114,18 +126,5 @@
 
   .accent-amber {
     color: var(--accent-amber);
-  }
-
-  /* Smooth transitions on interactive elements */
-  button,
-  a,
-  [role="button"] {
-    transition: all 150ms ease;
-  }
-
-  /* Focus visible ring */
-  :focus-visible {
-    outline: 2px solid var(--accent-amber);
-    outline-offset: 2px;
   }
 }
