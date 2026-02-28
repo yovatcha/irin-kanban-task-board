@@ -31,7 +31,8 @@ interface Card {
   id: string;
   title: string;
   description: string | null;
-  priority: "LOW" | "MEDIUM" | "HIGH";
+  priority: number;
+  dueDate: string | Date | null;
   order: number;
   checklists: ChecklistItem[];
 }
@@ -52,7 +53,9 @@ interface Board {
 export default function KanbanBoard({ boardId }: { boardId: string }) {
   const [board, setBoard] = useState<Board | null>(null);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [activeLane, setActiveLane] = useState<Lane | null>(null);
   const [isAddingLane, setIsAddingLane] = useState(false);
+  const [isSavingLane, setIsSavingLane] = useState(false);
   const [newLaneTitle, setNewLaneTitle] = useState("");
 
   const sensors = useSensors(
@@ -77,7 +80,9 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
 
   async function createLane(e: React.FormEvent) {
     e.preventDefault();
-    if (!newLaneTitle.trim()) return;
+    if (!newLaneTitle.trim() || isSavingLane) return;
+
+    setIsSavingLane(true);
 
     try {
       const res = await fetch("/api/lanes", {
@@ -93,43 +98,82 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
       }
     } catch (error) {
       console.error("Failed to create lane:", error);
+    } finally {
+      setIsSavingLane(false);
     }
   }
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
-    const card = board?.lanes
-      .flatMap((lane) => lane.cards)
-      .find((c) => c.id === active.id);
-    setActiveCard(card || null);
+    const isLane = active.data.current?.type === "Lane";
+
+    if (isLane) {
+      const activeLane = board?.lanes.find((l) => l.id === active.id);
+      setActiveLane(activeLane || null);
+    } else {
+      const card = board?.lanes
+        .flatMap((lane) => lane.cards)
+        .find((c) => c.id === active.id);
+      setActiveCard(card || null);
+    }
   }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    const isLane = active.data.current?.type === "Lane";
+
+    // Reset active elements
     setActiveCard(null);
+    setActiveLane(null);
 
     if (!over || active.id === over.id) return;
 
+    if (isLane) {
+      const activeLaneId = active.id as string;
+      const overLaneId = over.id as string;
+
+      const activeLane = board?.lanes.find((l) => l.id === activeLaneId);
+      const targetLane = board?.lanes.find((l) => l.id === overLaneId);
+
+      if (!activeLane || !targetLane) return;
+
+      try {
+        await fetch("/api/lanes", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: activeLaneId,
+            order: targetLane.order,
+          }),
+        });
+        await fetchBoard();
+      } catch (error) {
+        console.error("Failed to move lane:", error);
+      }
+      return;
+    }
+
+    // --- Card Drag Logic ---
     const activeCardId = active.id as string;
     const overId = over.id as string;
 
-    let activeCard: Card | undefined;
+    let draggedCard: Card | undefined;
     let sourceLane: Lane | undefined;
 
     board?.lanes.forEach((lane) => {
       const card = lane.cards.find((c) => c.id === activeCardId);
       if (card) {
-        activeCard = card;
+        draggedCard = card;
         sourceLane = lane;
       }
     });
 
-    if (!activeCard || !sourceLane) return;
+    if (!draggedCard || !sourceLane) return;
 
     let targetLane: Lane | undefined;
     let targetCard: Card | undefined;
-    let newOrder: number;
 
+    // Check if dropping over a card
     board?.lanes.forEach((lane) => {
       const card = lane.cards.find((c) => c.id === overId);
       if (card) {
@@ -138,15 +182,16 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
       }
     });
 
+    // If not over a card, try to see if it's over a lane directly
     if (!targetCard) {
       targetLane = board?.lanes.find((l) => l.id === overId);
     }
 
     if (!targetLane) return;
 
-    newOrder = targetCard ? targetCard.order : targetLane.cards.length;
+    const newOrder = targetCard ? targetCard.order : targetLane.cards.length;
 
-    if (sourceLane.id === targetLane.id && activeCard.order === newOrder)
+    if (sourceLane.id === targetLane.id && draggedCard.order === newOrder)
       return;
 
     try {
@@ -253,13 +298,14 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
                   <div className="flex gap-2">
                     <button
                       type="submit"
-                      className="flex-1 py-1.5 rounded-lg text-sm font-medium hover:opacity-90 transition-all"
+                      disabled={isSavingLane}
+                      className="flex-1 py-1.5 rounded-lg text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50"
                       style={{
                         backgroundColor: "var(--accent-amber)",
                         color: "#1C1A18",
                       }}
                     >
-                      Add
+                      {isSavingLane ? "Adding..." : "Add"}
                     </button>
                     <button
                       type="button"
@@ -305,9 +351,13 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
         </div>
 
         <DragOverlay>
-          {activeCard ? (
+          {activeLane ? (
             <div className="rotate-2 opacity-90">
-              <CardComponent card={activeCard} onRefresh={fetchBoard} />
+              <Lane lane={activeLane} onRefresh={() => {}} />
+            </div>
+          ) : activeCard ? (
+            <div className="rotate-2 opacity-90">
+              <CardComponent card={activeCard} onRefresh={() => {}} />
             </div>
           ) : null}
         </DragOverlay>

@@ -161,23 +161,15 @@ export const transition = {
 // ─── Component-level Tokens ───────────────────────────────────────────────────
 
 /** Maps card priority to display properties */
-export const priorityConfig = {
-  LOW: {
-    label: "Low",
-    tagKey: "design" as keyof typeof colors.tags,
-    dotColor: colors.status.info,
-  },
-  MEDIUM: {
-    label: "Medium",
-    tagKey: "procurement" as keyof typeof colors.tags,
-    dotColor: colors.status.warning,
-  },
-  HIGH: {
-    label: "High",
-    tagKey: "high" as keyof typeof colors.tags,
-    dotColor: colors.status.danger,
-  },
-} as const;
+export const priorityConfig: Record<
+  number,
+  { label: string; tagKey: keyof typeof colors.tags }
+> = {
+  0: { label: "Urgent", tagKey: "high" },
+  1: { label: "High", tagKey: "high" },
+  2: { label: "Medium", tagKey: "procurement" },
+  3: { label: "Low", tagKey: "design" },
+};
 
 /** Nav link definitions */
 export const navLinks = [

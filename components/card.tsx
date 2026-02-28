@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import CardModal from "./card-modal";
-import { CheckSquare, MessageSquare } from "lucide-react";
+import { CheckSquare, MessageSquare, CalendarIcon } from "lucide-react";
 import { colors, priorityConfig } from "@/lib/design-system";
 
 interface ChecklistItem {
@@ -20,7 +20,8 @@ interface CardProps {
     id: string;
     title: string;
     description: string | null;
-    priority: "LOW" | "MEDIUM" | "HIGH";
+    priority: number;
+    dueDate: string | Date | null;
     order: number;
     checklists: ChecklistItem[];
   };
@@ -111,7 +112,7 @@ export default function CardComponent({ card, onRefresh }: CardProps) {
             >
               {config.label}
             </span>
-            {card.priority === "HIGH" && (
+            {card.priority <= 1 && (
               <span
                 className="text-xs font-medium px-2 py-0.5 rounded-md"
                 style={{
@@ -198,6 +199,30 @@ export default function CardComponent({ card, onRefresh }: CardProps) {
                 <div className="w-6 h-6" /> /* spacer */
               )}
             </div>
+
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Due Date Indicator */}
+            {card.dueDate && (
+              <div
+                className="flex items-center gap-1"
+                style={{
+                  color:
+                    new Date(card.dueDate) < new Date()
+                      ? colors.status.danger
+                      : "var(--text-muted)",
+                }}
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span className="text-xs font-medium">
+                  {new Date(card.dueDate).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+            )}
 
             {/* Checklist count + (future) comment count */}
             <div className="flex items-center gap-2.5">

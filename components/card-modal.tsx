@@ -34,7 +34,8 @@ interface CardModalProps {
     id: string;
     title: string;
     description: string | null;
-    priority: "LOW" | "MEDIUM" | "HIGH";
+    priority: number;
+    dueDate: string | Date | null;
     checklists: ChecklistItem[];
   };
   isOpen: boolean;
@@ -51,6 +52,9 @@ export default function CardModal({
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || "");
   const [priority, setPriority] = useState(card.priority);
+  const [dueDate, setDueDate] = useState<string>(
+    card.dueDate ? new Date(card.dueDate).toISOString().split("T")[0] : "",
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -58,6 +62,9 @@ export default function CardModal({
     setTitle(card.title);
     setDescription(card.description || "");
     setPriority(card.priority);
+    setDueDate(
+      card.dueDate ? new Date(card.dueDate).toISOString().split("T")[0] : "",
+    );
   }, [card]);
 
   async function handleSave() {
@@ -66,7 +73,13 @@ export default function CardModal({
       await fetch("/api/cards", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: card.id, title, description, priority }),
+        body: JSON.stringify({
+          id: card.id,
+          title,
+          description,
+          priority,
+          dueDate: dueDate || null,
+        }),
       });
       await onRefresh();
     } catch (error) {
@@ -193,9 +206,10 @@ export default function CardModal({
               PRIORITY
             </Label>
             <Select
-              value={priority}
-              onValueChange={async (value: "LOW" | "MEDIUM" | "HIGH") => {
-                setPriority(value);
+              value={priority.toString()}
+              onValueChange={async (value: string) => {
+                const numericPriority = parseInt(value, 10);
+                setPriority(numericPriority);
                 try {
                   await fetch("/api/cards", {
                     method: "PUT",
@@ -204,7 +218,7 @@ export default function CardModal({
                       id: card.id,
                       title,
                       description,
-                      priority: value,
+                      priority: numericPriority,
                     }),
                   });
                   await onRefresh();
@@ -229,10 +243,10 @@ export default function CardModal({
                   border: "1px solid var(--border-subtle)",
                 }}
               >
-                {(["LOW", "MEDIUM", "HIGH"] as const).map((p) => {
+                {([0, 1, 2, 3] as const).map((p) => {
                   const tc = colors.tags[priorityConfig[p].tagKey];
                   return (
-                    <SelectItem key={p} value={p}>
+                    <SelectItem key={p} value={p.toString()}>
                       <div className="flex items-center gap-2">
                         <span
                           className="w-2 h-2 rounded-full"
@@ -247,6 +261,31 @@ export default function CardModal({
                 })}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Due Date */}
+          <div className="space-y-1.5">
+            <Label
+              htmlFor="card-due-date"
+              className="text-xs font-medium"
+              style={{ color: "var(--text-muted)" }}
+            >
+              DUE DATE
+            </Label>
+            <Input
+              id="card-due-date"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              onBlur={handleSave}
+              className="text-sm cursor-pointer"
+              style={{
+                backgroundColor: "var(--bg-input)",
+                border: "1px solid var(--border-subtle)",
+                color: "var(--text-primary)",
+                colorScheme: "dark",
+              }}
+            />
           </div>
 
           {/* Checklist */}

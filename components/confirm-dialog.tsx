@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +16,7 @@ import {
 interface ConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   title: string;
   description: string;
   confirmText?: string;
@@ -32,6 +34,17 @@ export default function ConfirmDialog({
   cancelText = "Cancel",
   variant = "default",
 }: ConfirmDialogProps) {
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  const handleConfirm = async () => {
+    setIsConfirming(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent
@@ -51,23 +64,37 @@ export default function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel
+            disabled={isConfirming}
             style={{
               backgroundColor: "var(--bg-overlay)",
               color: "var(--text-secondary)",
               border: "1px solid var(--border-subtle)",
+              opacity: isConfirming ? 0.5 : 1,
             }}
           >
             {cancelText}
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={(e) => {
+              e.preventDefault();
+              handleConfirm();
+            }}
+            disabled={isConfirming}
             style={
               variant === "destructive"
-                ? { backgroundColor: "#ef4444", color: "#fff" }
-                : { backgroundColor: "var(--accent-amber)", color: "#1C1A18" }
+                ? {
+                    backgroundColor: "#ef4444",
+                    color: "#fff",
+                    opacity: isConfirming ? 0.5 : 1,
+                  }
+                : {
+                    backgroundColor: "var(--accent-amber)",
+                    color: "#1C1A18",
+                    opacity: isConfirming ? 0.5 : 1,
+                  }
             }
           >
-            {confirmText}
+            {isConfirming ? "Processing..." : confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

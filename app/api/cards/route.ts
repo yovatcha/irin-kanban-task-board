@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     await requireAuth();
 
     const body = await request.json();
-    const { laneId, title, description, priority } = body;
+    const { laneId, title, description, priority, dueDate } = body;
 
     if (!laneId || !title) {
       return NextResponse.json(
@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
         laneId,
         title,
         description: description || "",
-        priority: priority || "MEDIUM",
+        priority: priority !== undefined ? priority : 2,
+        dueDate: dueDate ? new Date(dueDate) : null,
         order,
       },
       include: {
@@ -57,7 +58,7 @@ export async function PUT(request: NextRequest) {
     await requireAuth();
 
     const body = await request.json();
-    const { id, title, description, priority, laneId, order } = body;
+    const { id, title, description, priority, laneId, order, dueDate } = body;
 
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -76,6 +77,8 @@ export async function PUT(request: NextRequest) {
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (priority !== undefined) updateData.priority = priority;
+    if (dueDate !== undefined)
+      updateData.dueDate = dueDate ? new Date(dueDate) : null;
 
     // Handle lane/order changes with proper reordering
     if (laneId !== undefined && order !== undefined) {

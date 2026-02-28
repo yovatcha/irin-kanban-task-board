@@ -54,9 +54,45 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
+    const currentLane = await prisma.lane.findUnique({
+      where: { id },
+    });
+
+    if (!currentLane) {
+      return NextResponse.json({ error: "Lane not found" }, { status: 404 });
+    }
+
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
-    if (order !== undefined) updateData.order = order;
+
+    if (order !== undefined && currentLane.order !== order) {
+      if (order > currentLane.order) {
+        // Moving down: decrement lanes between old and new position
+        await prisma.lane.updateMany({
+          where: {
+            boardId: currentLane.boardId,
+            order: {
+              gt: currentLane.order,
+              lte: order,
+            },
+          },
+          data: { order: { decrement: 1 } },
+        });
+      } else {
+        // Moving up: increment lanes between new and old position
+        await prisma.lane.updateMany({
+          where: {
+            boardId: currentLane.boardId,
+            order: {
+              gte: order,
+              lt: currentLane.order,
+            },
+          },
+          data: { order: { increment: 1 } },
+        });
+      }
+      updateData.order = order;
+    }
 
     const lane = await prisma.lane.update({
       where: { id },

@@ -5,7 +5,9 @@ import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
+  useSortable,
 } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import CardComponent from "./card";
 import ConfirmDialog from "./confirm-dialog";
 import { Input } from "@/components/ui/input";
@@ -15,7 +17,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Trash2, ArrowUpDown } from "lucide-react";
+import {
+  Plus,
+  MoreHorizontal,
+  Trash2,
+  ArrowUpDown,
+  GripHorizontal,
+} from "lucide-react";
 
 interface ChecklistItem {
   id: string;
@@ -29,7 +37,8 @@ interface Card {
   id: string;
   title: string;
   description: string | null;
-  priority: "LOW" | "MEDIUM" | "HIGH";
+  priority: number;
+  dueDate: string | Date | null;
   order: number;
   checklists: ChecklistItem[];
 }
@@ -43,28 +52,48 @@ interface LaneProps {
   onRefresh: () => void;
 }
 
-const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-
 export default function Lane({ lane, onRefresh }: LaneProps) {
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState("");
+  const [isSavingCard, setIsSavingCard] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [sortByPriority, setSortByPriority] = useState(false);
 
-  const { setNodeRef } = useDroppable({ id: lane.id });
+  const { setNodeRef: setDroppableNodeRef } = useDroppable({
+    id: lane.id,
+    data: { type: "LaneType" },
+  });
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setSortableNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: lane.id,
+    data: { type: "Lane", lane },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
 
   const sortedCards = useMemo(() => {
     if (!sortByPriority) {
       return [...lane.cards].sort((a, b) => a.order - b.order);
     }
-    return [...lane.cards].sort(
-      (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority],
-    );
+    return [...lane.cards].sort((a, b) => a.priority - b.priority);
   }, [lane.cards, sortByPriority]);
 
   async function createCard(e: React.FormEvent) {
     e.preventDefault();
-    if (!newCardTitle.trim()) return;
+    if (!newCardTitle.trim() || isSavingCard) return;
+
+    setIsSavingCard(true);
 
     try {
       const res = await fetch("/api/cards", {
@@ -74,7 +103,7 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
           laneId: lane.id,
           title: newCardTitle,
           description: "",
-          priority: "MEDIUM",
+          priority: 2,
         }),
       });
 
@@ -85,6 +114,8 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
       }
     } catch (error) {
       console.error("Failed to create card:", error);
+    } finally {
+      setIsSavingCard(false);
     }
   }
 
@@ -100,14 +131,19 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
   return (
     <>
       <div
-        ref={setNodeRef}
-        className="flex-shrink-0 flex flex-col rounded-xl"
+        ref={setSortableNodeRef}
+        className="flex-shrink-0 flex flex-col rounded-xl relative group"
         style={{
           width: "280px",
           maxHeight: "calc(100vh - 160px)",
           backgroundColor: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          border: isDragging
+            ? "2px solid var(--accent-amber)"
+            : "1px solid var(--border-subtle)",
+          boxShadow: isDragging
+            ? "0 10px 30px rgba(0,0,0,0.5)"
+            : "0 2px 8px rgba(0,0,0,0.3)",
+          ...style,
         }}
       >
         {/* ── Column Header ── */}
@@ -116,6 +152,14 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
           style={{ borderBottom: "1px solid var(--border-subtle)" }}
         >
           <div className="flex items-center gap-2">
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab hover:bg-white/5 p-1 rounded transition-colors -ml-2"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <GripHorizontal className="w-4 h-4" />
+            </div>
             <h3
               className="font-semibold text-sm"
               style={{ color: "var(--text-primary)" }}
@@ -186,7 +230,10 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
         </div>
 
         {/* ── Cards area ── */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        <div
+          ref={setDroppableNodeRef}
+          className="flex-1 overflow-y-auto p-3 space-y-2"
+        >
           <SortableContext
             items={sortedCards.map((c) => c.id)}
             strategy={verticalListSortingStrategy}
@@ -225,13 +272,14 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all"
+                  disabled={isSavingCard}
+                  className="flex-1 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all disabled:opacity-50"
                   style={{
                     backgroundColor: "var(--accent-amber)",
                     color: "#1C1A18",
                   }}
                 >
-                  Add Card
+                  {isSavingCard ? "Adding..." : "Add Card"}
                 </button>
                 <button
                   type="button"
