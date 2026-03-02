@@ -76,7 +76,8 @@ export const colors = {
 
 export const font = {
   /** Font stack — Thai-friendly with Inter as the primary */
-  family: "'Inter', 'Sarabun', 'IBM Plex Sans Thai Looped', sans-serif",
+  family:
+    "var(--font-inter), 'Sarabun', 'IBM Plex Sans Thai Looped', sans-serif",
   sizes: {
     "2xs": "10px",
     xs: "11px",

@@ -203,7 +203,7 @@ export default function CardComponent({ card, onRefresh }: CardProps) {
                       : "var(--text-muted)",
                 }}
               >
-                <CalendarIcon className="w-3.5 h-3.5" />
+                <CalendarIcon className="w-3.5 h-3.5 mr-2" />
                 <span className="text-xs font-medium">
                   {new Date(card.dueDate).toLocaleDateString("en-US", {
                     month: "short",

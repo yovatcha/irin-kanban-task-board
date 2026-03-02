@@ -1,6 +1,4 @@
 /* ── Google Fonts ─────────────────────────────────────────────────────────── */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -65,7 +63,8 @@
   body {
     background-color: var(--bg-base);
     color: var(--text-primary);
-    font-family: "Inter", "Sarabun", "IBM Plex Sans Thai Looped", sans-serif;
+    font-family:
+      var(--font-inter), "Sarabun", "IBM Plex Sans Thai Looped", sans-serif;
     font-size: 14px;
     line-height: 1.5;
   }
