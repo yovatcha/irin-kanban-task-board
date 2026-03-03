@@ -17,12 +17,24 @@ export default async function LoginPage() {
   )}&state=random_state&scope=profile%20openid`;
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundColor: "var(--bg-base)" }}
-    >
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover scale-110"
+      >
+        <source src="/images/irin.mp4" type="video/mp4" />
+      </video>
+
+      {/* Black Overlay with 50% Opacity */}
+      <div className="absolute inset-0 bg-black/50" />
+
+      {/* Main Content Card */}
       <div
-        className="w-full max-w-sm rounded-2xl p-8 shadow-xl"
+        className="relative z-10 w-full max-w-sm rounded-2xl p-8 shadow-xl"
         style={{
           backgroundColor: "var(--bg-surface)",
           border: "1px solid var(--border-subtle)",

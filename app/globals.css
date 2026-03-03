@@ -64,7 +64,7 @@
     background-color: var(--bg-base);
     color: var(--text-primary);
     font-family:
-      var(--font-inter), "Sarabun", "IBM Plex Sans Thai Looped", sans-serif;
+      "Google Sans", "Sarabun", "IBM Plex Sans Thai Looped", sans-serif;
     font-size: 14px;
     line-height: 1.5;
   }
