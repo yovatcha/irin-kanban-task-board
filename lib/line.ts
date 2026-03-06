@@ -56,5 +56,37 @@ export function formatTaskList(
   return message;
 }
 
+// Send due date reminder notification
+export async function sendDueDateReminder(
+  lineUserId: string,
+  cardTitle: string,
+  dueDate: Date,
+) {
+  try {
+    const lineClient = getLineClient();
+
+    // Format date in Thai locale (Asia/Bangkok)
+    const formattedDate = dueDate.toLocaleDateString("th-TH", {
+      timeZone: "Asia/Bangkok",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    await lineClient.pushMessage(lineUserId, {
+      type: "text",
+      text:
+        `⏰ เตือนความจำจากไอริน!\n\n` +
+        `การ์ด「${cardTitle}」\n` +
+        `มีกำหนดส่งวันนี้เลยนะ 📅\n` +
+        `วันที่: ${formattedDate}\n\n` +
+        `อย่าลืมทำให้เสร็จด้วยน้า สู้ๆ! ✨`,
+    });
+  } catch (error) {
+    console.error("Failed to send due date reminder:", error);
+    throw error;
+  }
+}
+
 // Export getLineClient for webhook use
 export { getLineClient };
