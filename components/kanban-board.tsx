@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -17,7 +17,7 @@ import {
 import Lane from "./lane";
 import CardComponent from "./card";
 import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 interface ChecklistItem {
   id: string;
@@ -57,6 +57,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
   const [isAddingLane, setIsAddingLane] = useState(false);
   const [isSavingLane, setIsSavingLane] = useState(false);
   const [newLaneTitle, setNewLaneTitle] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -64,11 +65,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
     }),
   );
 
-  useEffect(() => {
-    fetchBoard();
-  }, [boardId]);
-
-  async function fetchBoard() {
+  const fetchBoard = useCallback(async () => {
     try {
       const res = await fetch(`/api/boards/${boardId}`);
       const data = await res.json();
@@ -76,7 +73,11 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
     } catch (error) {
       console.error("Failed to fetch board:", error);
     }
-  }
+  }, [boardId]);
+
+  useEffect(() => {
+    fetchBoard();
+  }, [fetchBoard]);
 
   async function createLane(e: React.FormEvent) {
     e.preventDefault();
@@ -108,8 +109,8 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
     const isLane = active.data.current?.type === "Lane";
 
     if (isLane) {
-      const activeLane = board?.lanes.find((l) => l.id === active.id);
-      setActiveLane(activeLane || null);
+      const lane = board?.lanes.find((l) => l.id === active.id);
+      setActiveLane(lane || null);
     } else {
       const card = board?.lanes
         .flatMap((lane) => lane.cards)
@@ -122,23 +123,35 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
     const { active, over } = event;
     const isLane = active.data.current?.type === "Lane";
 
-    // Reset active elements
     setActiveCard(null);
     setActiveLane(null);
 
     if (!over || active.id === over.id) return;
+    if (!board) return;
 
+    // ─── Lane reorder ────────────────────────────────────────────────────────
     if (isLane) {
       const activeLaneId = active.id as string;
       const overLaneId = over.id as string;
 
-      const activeLane = board?.lanes.find((l) => l.id === activeLaneId);
-      const targetLane = board?.lanes.find((l) => l.id === overLaneId);
+      const activeLane = board.lanes.find((l) => l.id === activeLaneId);
+      const targetLane = board.lanes.find((l) => l.id === overLaneId);
 
       if (!activeLane || !targetLane) return;
 
+      // Optimistic update: swap positions in local state instantly
+      const prevBoard = board;
+      const activeIdx = board.lanes.indexOf(activeLane);
+      const targetIdx = board.lanes.indexOf(targetLane);
+      const newLanes = [...board.lanes];
+      newLanes.splice(activeIdx, 1);
+      newLanes.splice(targetIdx, 0, activeLane);
+
+      setBoard({ ...board, lanes: newLanes });
+      setIsSyncing(true);
+
       try {
-        await fetch("/api/lanes", {
+        const res = await fetch("/api/lanes", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -146,21 +159,25 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
             order: targetLane.order,
           }),
         });
-        await fetchBoard();
+        if (!res.ok) throw new Error("Lane reorder failed");
       } catch (error) {
         console.error("Failed to move lane:", error);
+        // Rollback to previous state
+        setBoard(prevBoard);
+      } finally {
+        setIsSyncing(false);
       }
       return;
     }
 
-    // --- Card Drag Logic ---
+    // ─── Card move ───────────────────────────────────────────────────────────
     const activeCardId = active.id as string;
     const overId = over.id as string;
 
     let draggedCard: Card | undefined;
     let sourceLane: Lane | undefined;
 
-    board?.lanes.forEach((lane) => {
+    board.lanes.forEach((lane) => {
       const card = lane.cards.find((c) => c.id === activeCardId);
       if (card) {
         draggedCard = card;
@@ -174,7 +191,7 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
     let targetCard: Card | undefined;
 
     // Check if dropping over a card
-    board?.lanes.forEach((lane) => {
+    board.lanes.forEach((lane) => {
       const card = lane.cards.find((c) => c.id === overId);
       if (card) {
         targetCard = card;
@@ -182,9 +199,9 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
       }
     });
 
-    // If not over a card, try to see if it's over a lane directly
+    // If not over a card, try a lane directly
     if (!targetCard) {
-      targetLane = board?.lanes.find((l) => l.id === overId);
+      targetLane = board.lanes.find((l) => l.id === overId);
     }
 
     if (!targetLane) return;
@@ -194,8 +211,63 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
     if (sourceLane.id === targetLane.id && draggedCard.order === newOrder)
       return;
 
+    // Optimistic update: move card in local state instantly
+    const prevBoard = board;
+
+    const updatedLanes = board.lanes.map((lane) => {
+      // Remove card from source lane
+      if (lane.id === sourceLane!.id) {
+        return {
+          ...lane,
+          cards: lane.cards
+            .filter((c) => c.id !== activeCardId)
+            .map((c, i) => ({ ...c, order: i })),
+        };
+      }
+      // Insert card into target lane
+      if (lane.id === targetLane!.id) {
+        const insertAt = targetCard
+          ? lane.cards.findIndex((c) => c.id === targetCard!.id)
+          : lane.cards.length;
+        const filtered = lane.cards.filter((c) => c.id !== activeCardId);
+        filtered.splice(insertAt === -1 ? filtered.length : insertAt, 0, {
+          ...draggedCard!,
+          order: insertAt,
+        });
+        return {
+          ...lane,
+          cards: filtered.map((c, i) => ({ ...c, order: i })),
+        };
+      }
+      return lane;
+    });
+
+    // If source === target (same lane reorder), handle it as one lane
+    if (sourceLane.id === targetLane.id) {
+      const mergedLanes = board.lanes.map((lane) => {
+        if (lane.id !== sourceLane!.id) return lane;
+        const insertAt = targetCard
+          ? lane.cards.findIndex((c) => c.id === targetCard!.id)
+          : lane.cards.length;
+        const filtered = lane.cards.filter((c) => c.id !== activeCardId);
+        filtered.splice(insertAt === -1 ? filtered.length : insertAt, 0, {
+          ...draggedCard!,
+          order: insertAt,
+        });
+        return {
+          ...lane,
+          cards: filtered.map((c, i) => ({ ...c, order: i })),
+        };
+      });
+      setBoard({ ...board, lanes: mergedLanes });
+    } else {
+      setBoard({ ...board, lanes: updatedLanes });
+    }
+
+    setIsSyncing(true);
+
     try {
-      await fetch("/api/cards", {
+      const res = await fetch("/api/cards", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -204,9 +276,13 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
           order: newOrder,
         }),
       });
-      await fetchBoard();
+      if (!res.ok) throw new Error("Card move failed");
     } catch (error) {
       console.error("Failed to move card:", error);
+      // Rollback on error
+      setBoard(prevBoard);
+    } finally {
+      setIsSyncing(false);
     }
   }
 
@@ -255,6 +331,20 @@ export default function KanbanBoard({ boardId }: { boardId: string }) {
         >
           {board.lanes.length} lanes
         </span>
+
+        {/* Syncing indicator */}
+        {isSyncing && (
+          <div
+            className="flex items-center gap-1.5 text-xs ml-auto px-2.5 py-1 rounded-full"
+            style={{
+              backgroundColor: "var(--bg-overlay)",
+              color: "var(--text-muted)",
+            }}
+          >
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span>Saving…</span>
+          </div>
+        )}
       </div>
 
       <DndContext
