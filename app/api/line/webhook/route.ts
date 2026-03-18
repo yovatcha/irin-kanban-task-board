@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getLineClient, formatTaskList } from "@/lib/line";
 import { WebhookEvent, MessageEvent } from "@line/bot-sdk";
+import { askAI } from "@/lib/ai";
 
 export async function POST(request: NextRequest) {
   try {
@@ -145,12 +146,11 @@ async function handleTextMessage(event: MessageEvent) {
   }
 
   // Unknown command
+  // Fallback → AI chat
+  const aiReply = await askAI(messageText);
+
   await lineClient.replyMessage(event.replyToken, {
     type: "text",
-    text:
-      "ไอรินช่วยได้ประมาณนี้นะ 👇\n\n" +
-      "• my tasks — ดูงานที่ต้องทำ\n" +
-      "• done {taskId} — บอกว่างานเสร็จแล้ว\n\n" +
-      "ลองพิมพ์ดูได้เลยน้า ✨",
+    text: aiReply,
   });
 }
