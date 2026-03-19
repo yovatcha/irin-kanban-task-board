@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getLineClient, formatTaskList } from "@/lib/line";
 import { WebhookEvent, MessageEvent } from "@line/bot-sdk";
-import { askAI } from "@/lib/ai";
+import { askAI, generateTaskReply, classifyIntent } from "@/lib/ai";
 import { saveMessage } from "@/lib/memory";
 
 export async function POST(request: NextRequest) {
@@ -56,14 +56,14 @@ async function handleTextMessage(event: MessageEvent) {
     return;
   }
 
-  // Handle "my tasks" command
-  if (
-    messageText === "my tasks" ||
-    messageText === "My tasks" ||
-    messageText.includes("งานของ") ||
-    messageText.includes("งานอะไร") ||
-    messageText.includes("งานไหน")
-  ) {
+  // Fast-path: explicit "done {id}" shortcut (skip AI classification for speed)
+  const isDoneCommand = messageText.startsWith("done ");
+
+  // Classify the user's intent with AI — understands any natural phrasing
+  const intent = isDoneCommand ? "complete_task" : await classifyIntent(message.text);
+
+  // ===== VIEW TASKS =====
+  if (intent === "view_tasks") {
     const tasks = await prisma.checklistItem.findMany({
       where: {
         assignedToUserId: user.id,
@@ -82,29 +82,32 @@ async function handleTextMessage(event: MessageEvent) {
       }),
     );
 
-    // small personality touch
+    // AI-generated intro — no hardcoded strings
+    const introReply = await generateTaskReply(formattedTasks);
+
     await lineClient.replyMessage(event.replyToken, {
       type: "text",
-      text:
-        tasks.length === 0
-          ? "วันนี้ยังไม่มีงานค้างเลยนะ ✨ เก่งมาก!"
-          : "เดี๋ยวไอรินดูงานให้แป๊บนึงนะ 👀",
+      text: introReply,
     });
 
-    // send task list after
-    const message = formatTaskList(formattedTasks);
-
-    await lineClient.pushMessage(userId, {
-      type: "text",
-      text: message,
-    });
+    // only send the detailed task list when there are tasks
+    if (formattedTasks.length > 0) {
+      const taskListMessage = formatTaskList(formattedTasks);
+      await lineClient.pushMessage(userId, {
+        type: "text",
+        text: taskListMessage,
+      });
+    }
 
     return;
   }
 
-  // Handle "done {taskId}" command
-  if (messageText.startsWith("done ")) {
-    const taskId = messageText.substring(5).trim();
+  // ===== COMPLETE TASK =====
+  if (intent === "complete_task") {
+    // Support both "done {id}" shortcut and natural phrases like "ทำอะไรเสร็จ {id}"
+    // Extract the last whitespace-separated token as the task ID
+    const parts = message.text.trim().split(/\s+/);
+    const taskId = parts[parts.length - 1];
 
     try {
       const task = await prisma.checklistItem.findUnique({
