@@ -147,7 +147,7 @@ async function handleTextMessage(event: MessageEvent) {
 
   // Unknown command
   // Fallback → AI chat
-  const aiReply = await askAI(messageText);
+  const aiReply = await askAI(user.id, messageText);
 
   await lineClient.replyMessage(event.replyToken, {
     type: "text",

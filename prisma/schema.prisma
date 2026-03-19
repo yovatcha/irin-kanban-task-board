@@ -13,6 +13,7 @@ model User {
   avatarUrl     String?
   createdAt     DateTime        @default(now())
   assignedTasks ChecklistItem[]
+  messages      ChatMessage[]
 }
 
 model Board {
@@ -58,4 +59,14 @@ model ChecklistItem {
 
   @@index([cardId])
   @@index([assignedToUserId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String   // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
