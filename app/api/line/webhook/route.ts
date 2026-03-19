@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getLineClient, formatTaskList } from "@/lib/line";
 import { WebhookEvent, MessageEvent } from "@line/bot-sdk";
 import { askAI } from "@/lib/ai";
+import { saveMessage } from "@/lib/memory";
 
 export async function POST(request: NextRequest) {
   try {
@@ -145,9 +146,19 @@ async function handleTextMessage(event: MessageEvent) {
     return;
   }
 
-  // Unknown command
-  // Fallback → AI chat
-  const aiReply = await askAI(user.id, messageText);
+  // ===== AI CHAT WITH MEMORY =====
+
+  // save user message
+  await saveMessage(user.id, "user", message.text);
+
+  // ask AI
+  const aiReply = await askAI(user.id, message.text);
+
+  // save response
+  await saveMessage(user.id, "assistant", aiReply);
+
+  // delay เพิ่มความเป็นมนุษย์
+  await new Promise((r) => setTimeout(r, 500));
 
   await lineClient.replyMessage(event.replyToken, {
     type: "text",
