@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Loader2 } from "lucide-react";
 import { colors } from "@/lib/design-system";
 
 interface User {
@@ -40,6 +40,8 @@ export default function Checklist({
   const [users, setUsers] = useState<User[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newItemText, setNewItemText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -57,7 +59,8 @@ export default function Checklist({
 
   async function addItem(e: React.FormEvent) {
     e.preventDefault();
-    if (!newItemText.trim()) return;
+    if (!newItemText.trim() || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await fetch("/api/checklist", {
         method: "POST",
@@ -69,6 +72,8 @@ export default function Checklist({
       setIsAdding(false);
     } catch (error) {
       console.error("Failed to add checklist item:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -86,6 +91,7 @@ export default function Checklist({
   }
 
   async function assignUser(itemId: string, userId: string | null) {
+    setAssigningId(itemId);
     try {
       await fetch("/api/checklist", {
         method: "PUT",
@@ -95,6 +101,8 @@ export default function Checklist({
       await onRefresh();
     } catch (error) {
       console.error("Failed to assign user:", error);
+    } finally {
+      setAssigningId(null);
     }
   }
 
@@ -185,10 +193,15 @@ export default function Checklist({
           />
           <button
             type="submit"
-            className="px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all"
+            disabled={isSubmitting}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all disabled:opacity-50 flex items-center gap-1.5"
             style={{ backgroundColor: "var(--accent-amber)", color: "#1C1A18" }}
           >
-            Add
+            {isSubmitting ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              "Add"
+            )}
           </button>
           <button
             type="button"
@@ -252,61 +265,67 @@ export default function Checklist({
               </p>
 
               {/* Assignee select */}
-              <Select
-                value={item.assignedToUserId || "unassigned"}
-                onValueChange={(value) =>
-                  assignUser(item.id, value === "unassigned" ? null : value)
-                }
-              >
-                <SelectTrigger
-                  className="h-7 text-xs w-full max-w-[180px]"
-                  style={{
-                    backgroundColor: "var(--bg-input)",
-                    border: "1px solid var(--border-subtle)",
-                    color: "var(--text-muted)",
-                  }}
+              <div className="flex items-center gap-2">
+                <Select
+                  value={item.assignedToUserId || "unassigned"}
+                  disabled={assigningId === item.id}
+                  onValueChange={(value) =>
+                    assignUser(item.id, value === "unassigned" ? null : value)
+                  }
                 >
-                  <SelectValue placeholder="Assign to..." />
-                </SelectTrigger>
-                <SelectContent
-                  style={{
-                    backgroundColor: "var(--bg-surface)",
-                    border: "1px solid var(--border-subtle)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <SelectItem value="unassigned">
-                    <span style={{ color: "var(--text-muted)" }}>
-                      Unassigned
-                    </span>
-                  </SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      <div className="flex items-center gap-2">
-                        {user.avatarUrl ? (
-                          <img
-                            src={user.avatarUrl}
-                            alt={user.name}
-                            className="w-4 h-4 rounded-full"
-                          />
-                        ) : (
-                          <div
-                            className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"
-                            style={{
-                              backgroundColor: colors.accent.amber,
-                              color: "#1C1A18",
-                              fontSize: "9px",
-                            }}
-                          >
-                            {user.name[0]?.toUpperCase()}
-                          </div>
-                        )}
-                        <span>{user.name}</span>
-                      </div>
+                  <SelectTrigger
+                    className="h-7 text-xs w-full max-w-[180px]"
+                    style={{
+                      backgroundColor: "var(--bg-input)",
+                      border: "1px solid var(--border-subtle)",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    <SelectValue placeholder="Assign to..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    style={{
+                      backgroundColor: "var(--bg-surface)",
+                      border: "1px solid var(--border-subtle)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <SelectItem value="unassigned">
+                      <span style={{ color: "var(--text-muted)" }}>
+                        Unassigned
+                      </span>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center gap-2">
+                          {user.avatarUrl ? (
+                            <img
+                              src={user.avatarUrl}
+                              alt={user.name}
+                              className="w-4 h-4 rounded-full"
+                            />
+                          ) : (
+                            <div
+                              className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold"
+                              style={{
+                                backgroundColor: colors.accent.amber,
+                                color: "#1C1A18",
+                                fontSize: "9px",
+                              }}
+                            >
+                              {user.name[0]?.toUpperCase()}
+                            </div>
+                          )}
+                          <span>{user.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {assigningId === item.id && (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                )}
+              </div>
             </div>
 
             {/* Delete */}

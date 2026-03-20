@@ -23,6 +23,7 @@ import {
   Trash2,
   ArrowUpDown,
   GripHorizontal,
+  Loader2,
 } from "lucide-react";
 
 interface ChecklistItem {
@@ -59,7 +60,7 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [sortByPriority, setSortByPriority] = useState(false);
 
-  const { setNodeRef: setDroppableNodeRef } = useDroppable({
+  const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
     id: lane.id,
     data: { type: "LaneType" },
   });
@@ -75,6 +76,11 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
     id: lane.id,
     data: { type: "Lane", lane },
   });
+
+  function setRefs(el: HTMLDivElement | null) {
+    setSortableNodeRef(el);
+    setDroppableNodeRef(el);
+  }
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -131,7 +137,7 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
   return (
     <>
       <div
-        ref={setSortableNodeRef}
+        ref={setRefs}
         className="flex-shrink-0 flex flex-col rounded-xl relative group"
         style={{
           width: "280px",
@@ -139,7 +145,9 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
           backgroundColor: "var(--bg-surface)",
           border: isDragging
             ? "2px solid var(--accent-amber)"
-            : "1px solid var(--border-subtle)",
+            : isOver
+              ? "2px solid var(--border-focus)"
+              : "1px solid var(--border-subtle)",
           boxShadow: isDragging
             ? "0 10px 30px rgba(0,0,0,0.5)"
             : "0 2px 8px rgba(0,0,0,0.3)",
@@ -231,8 +239,16 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
 
         {/* ── Cards area ── */}
         <div
-          ref={setDroppableNodeRef}
           className="flex-1 overflow-y-auto p-3 space-y-2"
+          style={{
+            minHeight: isOver && sortedCards.length === 0 ? "80px" : undefined,
+            backgroundColor:
+              isOver && sortedCards.length === 0
+                ? "var(--bg-overlay)"
+                : undefined,
+            borderRadius: "8px",
+            transition: "background-color 0.15s",
+          }}
         >
           <SortableContext
             items={sortedCards.map((c) => c.id)}
@@ -242,6 +258,17 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
               <CardComponent key={card.id} card={card} onRefresh={onRefresh} />
             ))}
           </SortableContext>
+          {isOver && sortedCards.length === 0 && (
+            <div
+              className="rounded-lg border-2 border-dashed flex items-center justify-center h-16 text-xs"
+              style={{
+                borderColor: "var(--border-focus)",
+                color: "var(--text-muted)",
+              }}
+            >
+              Drop here
+            </div>
+          )}
         </div>
 
         {/* ── Add Card ── */}
@@ -273,13 +300,20 @@ export default function Lane({ lane, onRefresh }: LaneProps) {
                 <button
                   type="submit"
                   disabled={isSavingCard}
-                  className="flex-1 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all disabled:opacity-50"
+                  className="flex-1 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                   style={{
                     backgroundColor: "var(--accent-amber)",
                     color: "#1C1A18",
                   }}
                 >
-                  {isSavingCard ? "Adding..." : "Add Card"}
+                  {isSavingCard ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    "Add Card"
+                  )}
                 </button>
                 <button
                   type="button"
