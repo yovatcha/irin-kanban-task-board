@@ -4,7 +4,7 @@ import { getRecentMessages } from "./memory";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
+  model: "gemini-2.5-pro",
 });
 
 const SYSTEM_CONTEXT = `
@@ -99,10 +99,16 @@ export async function generateTaskReply(
     contextPrompt = `ผู้ใช้ถามว่ามีงานอะไรบ้างที่ค้างอยู่ ปรากฏว่ามีงานค้างอยู่ทั้งหมด ${taskCount} งาน ดังนี้:\n${taskSummary}\n\nตอบในแบบของไอรินให้ดูเป็นธรรมชาติ บอกจำนวนงาน และบอกว่าจะส่งลิสต์งานให้ดูต่อ (2-3 ประโยค เท่านั้น)`;
   }
 
-  const prompt = SYSTEM_CONTEXT + "\n\n" + `ผู้ใช้: ดูงานของฉัน\nไอริน (ตอบตามบริบทนี้: ${contextPrompt})\nไอริน:`;
+  const prompt =
+    SYSTEM_CONTEXT +
+    "\n\n" +
+    `ผู้ใช้: ดูงานของฉัน\nไอริน (ตอบตามบริบทนี้: ${contextPrompt})\nไอริน:`;
 
   const result = await model.generateContent(prompt);
-  return result.response.text().trim() || (taskCount === 0
-    ? "วันนี้ไม่มีงานค้างเลยนะ ✨ เก่งมากเลย!"
-    : `มีงานค้างอยู่ ${taskCount} งานนะ เดี๋ยวไอรินส่งลิสต์ให้เลย 👀`);
+  return (
+    result.response.text().trim() ||
+    (taskCount === 0
+      ? "วันนี้ไม่มีงานค้างเลยนะ ✨ เก่งมากเลย!"
+      : `มีงานค้างอยู่ ${taskCount} งานนะ เดี๋ยวไอรินส่งลิสต์ให้เลย 👀`)
+  );
 }
