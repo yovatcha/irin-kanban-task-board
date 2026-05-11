@@ -4,6 +4,15 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Irin Task Board",
   description: "Trello-style task management with LINE bot integration",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
+  appleWebApp: {
+    title: "Irin",
+    capable: true,
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({
