@@ -88,5 +88,18 @@ export async function sendDueDateReminder(
   }
 }
 
+// Send broadcast announcement to a single user
+export async function sendBroadcastMessage(
+  lineUserId: string,
+  senderName: string,
+  message: string,
+) {
+  const lineClient = getLineClient();
+  await lineClient.pushMessage(lineUserId, {
+    type: "text",
+    text: `📣 มีข้อความประกาศจาก ${senderName} ว่า:\n\n${message}`,
+  });
+}
+
 // Export getLineClient for webhook use
 export { getLineClient };

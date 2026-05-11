@@ -48,7 +48,7 @@ export default async function DashboardPage() {
               { label: "Boards", href: "/dashboard", active: true },
               { label: "Timeline", href: "#" },
               { label: "Calendar", href: "#" },
-              { label: "Reports", href: "#" },
+              { label: "Broadcast", href: "/broadcast" },
             ].map((link) => (
               <a
                 key={link.label}
