@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { LayoutGrid } from "lucide-react";
+import Image from "next/image";
 import { headers } from "next/headers";
 
 const LINE_LOGIN_CHANNEL_ID = process.env.LINE_LOGIN_CHANNEL_ID!;
@@ -42,12 +42,35 @@ export default async function LoginPage() {
         }}
       >
         {/* Logo */}
-        <div className="flex flex-col items-center gap-4 mb-8">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg"
-            style={{ backgroundColor: "var(--accent-amber)" }}
-          >
-            <LayoutGrid className="w-7 h-7" style={{ color: "#1C1A18" }} />
+        <div className="flex flex-col items-center gap-5 mb-8">
+          <div className="relative">
+            <div
+              aria-hidden
+              className="absolute inset-0 rounded-3xl blur-2xl opacity-60"
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 50%, var(--accent-amber), transparent 70%)",
+              }}
+            />
+            <div
+              className="relative w-20 h-20 rounded-3xl overflow-hidden flex items-center justify-center"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--accent-amber), rgba(255,255,255,0.04))",
+                boxShadow:
+                  "0 10px 30px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <Image
+                src="/logo.png"
+                alt="Irin Task Board"
+                width={80}
+                height={80}
+                priority
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
           <div className="text-center">
             <h1
