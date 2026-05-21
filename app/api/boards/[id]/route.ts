@@ -51,11 +51,15 @@ export async function PUT(
     await requireAuth();
     const { id } = await params;
     const body = await request.json();
-    const { name } = body;
+    const { name, color } = body;
+
+    const data: any = {};
+    if (name !== undefined) data.name = name;
+    if (color !== undefined) data.color = color;
 
     const board = await prisma.board.update({
       where: { id },
-      data: { name },
+      data,
     });
 
     return NextResponse.json({ board });

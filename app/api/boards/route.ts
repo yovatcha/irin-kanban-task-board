@@ -33,14 +33,14 @@ export async function POST(request: NextRequest) {
     await requireAuth();
 
     const body = await request.json();
-    const { name } = body;
+    const { name, color } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
     const board = await prisma.board.create({
-      data: { name },
+      data: { name, color: color ?? null } as any,
     });
 
     return NextResponse.json({ board }, { status: 201 });

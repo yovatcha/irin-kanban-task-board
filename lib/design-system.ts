@@ -181,3 +181,31 @@ export const navLinks = [
 
 /** Lane column fixed width */
 export const columnWidth = "280px";
+
+/**
+ * Board color palette — used by the board picker and the timeline view.
+ * Boards can store any hex string; this is the canonical set for the picker
+ * and the fallback when a board has no color set.
+ */
+export const boardPalette = [
+  "#F5A623", // amber
+  "#22c55e", // green
+  "#3b82f6", // blue
+  "#a855f7", // purple
+  "#ef4444", // red
+  "#06b6d4", // cyan
+  "#ec4899", // pink
+  "#f97316", // orange
+  "#84cc16", // lime
+  "#14b8a6", // teal
+] as const;
+
+/** Stable fallback color derived from board id when board.color is null. */
+export function boardColor(board: { id: string; color?: string | null }): string {
+  if (board.color) return board.color;
+  let hash = 0;
+  for (let i = 0; i < board.id.length; i++) {
+    hash = (hash * 31 + board.id.charCodeAt(i)) | 0;
+  }
+  return boardPalette[Math.abs(hash) % boardPalette.length];
+}

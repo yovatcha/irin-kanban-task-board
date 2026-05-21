@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import BoardList from "@/components/board-list";
+import TimelineView from "@/components/timeline-view";
 import { Search, Bell, Settings, LayoutGrid } from "lucide-react";
 
-export default async function DashboardPage() {
+export default async function TimelinePage() {
   const user = await getCurrentUser();
 
   if (!user) {
@@ -26,7 +26,6 @@ export default async function DashboardPage() {
       >
         {/* Left: Logo + Nav links */}
         <div className="flex items-center gap-8">
-          {/* Logo */}
           <div className="flex items-center gap-2.5">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -42,18 +41,17 @@ export default async function DashboardPage() {
             </span>
           </div>
 
-          {/* Nav links */}
           <nav className="hidden md:flex items-center gap-1">
             {[
-              { label: "Boards", href: "/dashboard", active: true },
-              { label: "Timeline", href: "/dashboard/timeline" },
+              { label: "Boards", href: "/dashboard" },
+              { label: "Timeline", href: "/dashboard/timeline", active: true },
               { label: "Calendar", href: "#" },
               { label: "Broadcast", href: "/broadcast" },
             ].map((link) => (
               <a
                 key={link.label}
                 href={link.href}
-                className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                className="px-3 py-1.5 text-sm font-medium transition-colors"
                 style={{
                   color: link.active
                     ? "var(--text-primary)"
@@ -61,7 +59,6 @@ export default async function DashboardPage() {
                   borderBottom: link.active
                     ? "2px solid var(--accent-amber)"
                     : "2px solid transparent",
-                  borderRadius: 0,
                 }}
               >
                 {link.label}
@@ -72,7 +69,6 @@ export default async function DashboardPage() {
 
         {/* Right: Search + icons + avatar */}
         <div className="flex items-center gap-3">
-          {/* Search */}
           <div
             className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm"
             style={{
@@ -86,7 +82,6 @@ export default async function DashboardPage() {
             <span className="text-xs">Search tasks...</span>
           </div>
 
-          {/* Icon buttons */}
           {[Bell, Settings].map((Icon, i) => (
             <button
               key={i}
@@ -100,7 +95,6 @@ export default async function DashboardPage() {
             </button>
           ))}
 
-          {/* User avatar + logout */}
           <div className="flex items-center gap-2">
             {user.avatarUrl ? (
               <img
@@ -136,8 +130,8 @@ export default async function DashboardPage() {
       </header>
 
       {/* ── Main Content ── */}
-      <main className="flex-1 overflow-auto px-6 py-8">
-        <BoardList />
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <TimelineView />
       </main>
     </div>
   );
