@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getLineClient, formatTaskList } from "@/lib/line";
-import { WebhookEvent, MessageEvent } from "@line/bot-sdk";
+import { getLineClient, buildTaskListFlex } from "@/lib/line";
+import {
+  WebhookEvent,
+  MessageEvent,
+  PostbackEvent,
+} from "@line/bot-sdk";
 import { askAI, generateTaskReply, classifyIntent } from "@/lib/ai";
 import { saveMessage } from "@/lib/memory";
 
@@ -14,14 +18,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No signature" }, { status: 400 });
     }
 
-    // Parse webhook events
     const events: WebhookEvent[] = JSON.parse(body).events;
 
-    // Process each event
     await Promise.all(
       events.map(async (event) => {
         if (event.type === "message" && event.message.type === "text") {
           await handleTextMessage(event as MessageEvent);
+        } else if (event.type === "postback") {
+          await handlePostback(event as PostbackEvent);
         }
       }),
     );
@@ -30,6 +34,66 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Webhook error:", error);
     return NextResponse.json({ error: "Webhook failed" }, { status: 500 });
+  }
+}
+
+// Shared between the "done {id}" text path and the tap-to-complete postback.
+async function completeTask(
+  taskId: string,
+  userId: string,
+  replyToken: string,
+) {
+  const lineClient = getLineClient();
+  const task = await prisma.checklistItem.findUnique({
+    where: { id: taskId },
+    include: { card: true },
+  });
+
+  if (!task) {
+    await lineClient.replyMessage(replyToken, {
+      type: "text",
+      text: "ไอรินหางานนี้ไม่เจอเลย 😢 ลองเช็กอีกทีน้า",
+    });
+    return;
+  }
+  if (task.assignedToUserId !== userId) {
+    await lineClient.replyMessage(replyToken, {
+      type: "text",
+      text: "งานนี้ไม่ได้มอบหมายให้เธอนะ 🤔",
+    });
+    return;
+  }
+  if (task.completed) {
+    await lineClient.replyMessage(replyToken, {
+      type: "text",
+      text: "งานนี้ปิดไปแล้วน้า ✨",
+    });
+    return;
+  }
+
+  await prisma.checklistItem.update({
+    where: { id: taskId },
+    data: { completed: true },
+  });
+
+  await lineClient.replyMessage(replyToken, {
+    type: "text",
+    text: `เสร็จแล้วใช่มั้ย เก่งมากเลย ✨\n\nการ์ด: ${task.card.title}\nงาน: ${task.text}`,
+  });
+}
+
+async function handlePostback(event: PostbackEvent) {
+  const userId = event.source.userId;
+  if (!userId) return;
+
+  const user = await prisma.user.findUnique({
+    where: { lineUserId: userId },
+  });
+  if (!user) return;
+
+  const [action, taskId] = event.postback.data.split(":", 2);
+  if (action === "complete" && taskId) {
+    await completeTask(taskId, user.id, event.replyToken);
   }
 }
 
@@ -60,7 +124,9 @@ async function handleTextMessage(event: MessageEvent) {
   const isDoneCommand = messageText.startsWith("done ");
 
   // Classify the user's intent with AI — understands any natural phrasing
-  const intent = isDoneCommand ? "complete_task" : await classifyIntent(message.text);
+  const intent = isDoneCommand
+    ? "complete_task"
+    : await classifyIntent(message.text);
 
   // ===== VIEW TASKS =====
   if (intent === "view_tasks") {
@@ -74,13 +140,11 @@ async function handleTextMessage(event: MessageEvent) {
       },
     });
 
-    const formattedTasks = tasks.map(
-      (task: { id: any; text: any; card: { title: any } }) => ({
-        id: task.id,
-        text: task.text,
-        cardTitle: task.card.title,
-      }),
-    );
+    const formattedTasks = tasks.map((task) => ({
+      id: task.id,
+      text: task.text,
+      cardTitle: task.card.title,
+    }));
 
     // AI-generated intro — no hardcoded strings
     const introReply = await generateTaskReply(formattedTasks);
@@ -90,13 +154,14 @@ async function handleTextMessage(event: MessageEvent) {
       text: introReply,
     });
 
-    // only send the detailed task list when there are tasks
     if (formattedTasks.length > 0) {
-      const taskListMessage = formatTaskList(formattedTasks);
-      await lineClient.pushMessage(userId, {
-        type: "text",
-        text: taskListMessage,
-      });
+      await lineClient.pushMessage(userId, buildTaskListFlex(formattedTasks));
+      if (formattedTasks.length > 12) {
+        await lineClient.pushMessage(userId, {
+          type: "text",
+          text: `(ตอนนี้แสดง 12 งานแรกนะ ทั้งหมดมี ${formattedTasks.length} งาน)`,
+        });
+      }
     }
 
     return;
@@ -108,59 +173,15 @@ async function handleTextMessage(event: MessageEvent) {
     // Extract the last whitespace-separated token as the task ID
     const parts = message.text.trim().split(/\s+/);
     const taskId = parts[parts.length - 1];
-
-    try {
-      const task = await prisma.checklistItem.findUnique({
-        where: { id: taskId },
-        include: { card: true },
-      });
-
-      if (!task) {
-        await lineClient.replyMessage(event.replyToken, {
-          type: "text",
-          text: "ไอรินหางานนี้ไม่เจอเลย 😢 ลองเช็ก task id อีกทีน้า",
-        });
-        return;
-      }
-
-      if (task.assignedToUserId !== user.id) {
-        await lineClient.replyMessage(event.replyToken, {
-          type: "text",
-          text: "งานนี้ไม่ได้มอบหมายให้เธอนะ 🤔",
-        });
-        return;
-      }
-
-      await prisma.checklistItem.update({
-        where: { id: taskId },
-        data: { completed: true },
-      });
-
-      await lineClient.replyMessage(event.replyToken, {
-        type: "text",
-        text: `เสร็จแล้วใช่มั้ย เก่งมากเลย ✨\n\nการ์ด: ${task.card.title}\nงาน: ${task.text}`,
-      });
-    } catch (error) {
-      await lineClient.replyMessage(event.replyToken, {
-        type: "text",
-        text: "ไอรินทำรายการไม่สำเร็จเลย ลองใหม่อีกทีได้มั้ยนะ 🙏",
-      });
-    }
+    await completeTask(taskId, user.id, event.replyToken);
     return;
   }
 
   // ===== AI CHAT WITH MEMORY =====
-
-  // save user message
   await saveMessage(user.id, "user", message.text);
-
-  // ask AI
   const aiReply = await askAI(user.id, message.text);
-
-  // save response
   await saveMessage(user.id, "assistant", aiReply);
 
-  // delay เพิ่มความเป็นมนุษย์
   await new Promise((r) => setTimeout(r, 500));
 
   await lineClient.replyMessage(event.replyToken, {

@@ -1,4 +1,4 @@
-import { Client } from "@line/bot-sdk";
+import { Client, FlexMessage, FlexBubble } from "@line/bot-sdk";
 
 function getLineClient() {
   const config = {
@@ -37,23 +37,71 @@ export function verifySignature(body: string, signature: string): boolean {
   return hash === signature;
 }
 
-// Format task list for LINE message
-export function formatTaskList(
+// LINE carousels hold up to 12 bubbles.
+const MAX_TASK_BUBBLES = 12;
+
+/**
+ * Build a Flex carousel where each task is a bubble with a tap-to-complete
+ * button. The button sends a postback "complete:{taskId}" so users never
+ * have to type or copy a cuid.
+ */
+export function buildTaskListFlex(
   tasks: Array<{ id: string; text: string; cardTitle: string }>,
-) {
-  if (tasks.length === 0) {
-    return "วันนี้ยังไม่มีงานค้างเลยนะ ✨ เก่งมาก!";
-  }
+): FlexMessage {
+  const bubbles: FlexBubble[] = tasks
+    .slice(0, MAX_TASK_BUBBLES)
+    .map((task, idx) => ({
+      type: "bubble",
+      size: "kilo",
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "text",
+            text: `#${idx + 1}  ${task.cardTitle}`,
+            weight: "bold",
+            size: "xs",
+            color: "#9E9189",
+            wrap: true,
+          },
+          {
+            type: "text",
+            text: task.text,
+            size: "md",
+            color: "#1C1A18",
+            weight: "bold",
+            wrap: true,
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: "#06C755",
+            height: "sm",
+            action: {
+              type: "postback",
+              label: "✓ เสร็จแล้ว",
+              data: `complete:${task.id}`,
+              displayText: `เสร็จงาน: ${task.text}`,
+            },
+          },
+        ],
+      },
+    }));
 
-  let message = `📌 งานที่เธอยังต้องทำมี ${tasks.length} งานนะ:\n\n`;
-
-  tasks.forEach((task, index) => {
-    message += `${index + 1}. ${task.cardTitle}\n   └ ${task.text}\n   ID: ${task.id}\n\n`;
-  });
-
-  message += "ถ้าทำเสร็จแล้ว พิมพ์แบบนี้ได้เลยน้า:\ndone {taskId}";
-
-  return message;
+  return {
+    type: "flex",
+    altText: `งานที่ต้องทำ ${tasks.length} งาน`,
+    contents: { type: "carousel", contents: bubbles },
+  };
 }
 
 // Send due date reminder notification
