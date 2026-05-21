@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, UnauthorizedError } from "@/lib/auth";
 
 // GET /api/boards - List all boards
 export async function GET() {
@@ -23,7 +23,14 @@ export async function GET() {
 
     return NextResponse.json({ boards });
   } catch (error) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("/api/boards error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -45,6 +52,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ board }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("/api/boards error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal error" },
+      { status: 500 },
+    );
   }
 }

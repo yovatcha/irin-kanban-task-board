@@ -61,12 +61,21 @@ export async function getCurrentUser() {
   return user;
 }
 
+// Thrown by requireAuth so callers can distinguish auth failures from
+// other errors (DB, network) and respond with the right status code.
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("Unauthorized");
+    this.name = "UnauthorizedError";
+  }
+}
+
 // Require authentication (throws if not authenticated)
 export async function requireAuth() {
   const user = await getCurrentUser();
 
   if (!user) {
-    throw new Error("Unauthorized");
+    throw new UnauthorizedError();
   }
 
   return user;
