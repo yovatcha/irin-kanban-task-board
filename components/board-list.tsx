@@ -279,7 +279,7 @@ export default function BoardList() {
                 router.push(`/boards/${board.id}`);
               }
             }}
-            className="group relative text-left rounded-xl p-5 transition-all duration-200 hover:scale-[1.02] cursor-pointer overflow-hidden"
+            className="group relative text-left rounded-xl p-5 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
             style={{
               backgroundColor: "var(--bg-surface)",
               border: "1px solid var(--border-subtle)",
@@ -296,7 +296,7 @@ export default function BoardList() {
           >
             {/* Color stripe at top */}
             <div
-              className="absolute top-0 left-0 right-0 h-1"
+              className="absolute top-0 left-0 right-0 h-1 rounded-t-xl"
               style={{ backgroundColor: color }}
             />
 
