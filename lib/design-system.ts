@@ -4,7 +4,7 @@
  * All design tokens live here. Import from "@/lib/design-system"
  * instead of scattering raw values across components.
  */
-
+//test
 // ─── Color Palette ────────────────────────────────────────────────────────────
 
 export const colors = {
@@ -201,7 +201,10 @@ export const boardPalette = [
 ] as const;
 
 /** Stable fallback color derived from board id when board.color is null. */
-export function boardColor(board: { id: string; color?: string | null }): string {
+export function boardColor(board: {
+  id: string;
+  color?: string | null;
+}): string {
   if (board.color) return board.color;
   let hash = 0;
   for (let i = 0; i < board.id.length; i++) {
