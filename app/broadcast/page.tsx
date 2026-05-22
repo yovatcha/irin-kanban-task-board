@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, LayoutGrid } from "lucide-react";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isPinVerified } from "@/lib/auth";
 import BroadcastForm from "@/components/broadcast-form";
 
 export default async function BroadcastPage() {
   const user = await getCurrentUser();
   if (!user) {
     redirect("/login");
+  }
+  if (!(await isPinVerified())) {
+    redirect("/pin");
   }
 
   return (

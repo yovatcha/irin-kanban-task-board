@@ -2,6 +2,15 @@ import { cookies } from "next/headers";
 import { prisma } from "./prisma";
 
 const SESSION_COOKIE_NAME = "session";
+const PIN_COOKIE_NAME = "pin-verified";
+
+export function getAccessPin(): string {
+  const pin = process.env.ACCESS_PIN;
+  if (!pin) {
+    throw new Error("ACCESS_PIN env var is not set");
+  }
+  return pin;
+}
 
 export interface SessionData {
   userId: string;
@@ -44,6 +53,23 @@ export async function getSession(): Promise<SessionData | null> {
 export async function deleteSession() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);
+  cookieStore.delete(PIN_COOKIE_NAME);
+}
+
+// PIN gate: shared access PIN required after LINE login
+export async function isPinVerified(): Promise<boolean> {
+  const cookieStore = await cookies();
+  return cookieStore.get(PIN_COOKIE_NAME)?.value === "1";
+}
+
+export async function setPinVerified() {
+  const cookieStore = await cookies();
+  cookieStore.set(PIN_COOKIE_NAME, "1", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  });
 }
 
 // Get current user from session

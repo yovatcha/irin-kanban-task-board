@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isPinVerified } from "@/lib/auth";
 import BoardList from "@/components/board-list";
 import { Search, Bell, Settings, LayoutGrid } from "lucide-react";
 
@@ -8,6 +8,10 @@ export default async function DashboardPage() {
 
   if (!user) {
     redirect("/login");
+  }
+
+  if (!(await isPinVerified())) {
+    redirect("/pin");
   }
 
   return (

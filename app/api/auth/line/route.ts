@@ -87,10 +87,10 @@ export async function GET(request: NextRequest) {
     // Create session
     await createSession(user.id, user.lineUserId);
 
-    console.log("Session created, redirecting to dashboard");
+    console.log("Session created, redirecting to PIN gate");
 
-    // Redirect to dashboard
-    return NextResponse.redirect(new URL("/dashboard", APP_URL));
+    // Redirect to PIN gate; user reaches dashboard after entering the PIN
+    return NextResponse.redirect(new URL("/pin", APP_URL));
   } catch (error) {
     console.error("LINE login error:", error);
     return NextResponse.json(

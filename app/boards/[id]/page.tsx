@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isPinVerified } from "@/lib/auth";
 import KanbanBoard from "@/components/kanban-board";
 import { LayoutGrid, ChevronLeft } from "lucide-react";
 
@@ -12,6 +12,10 @@ export default async function BoardPage({
 
   if (!user) {
     redirect("/login");
+  }
+
+  if (!(await isPinVerified())) {
+    redirect("/pin");
   }
 
   const { id } = await params;
