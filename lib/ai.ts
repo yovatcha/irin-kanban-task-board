@@ -1,5 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getRecentMessages } from "./memory";
+import { retrieveRelevantTasks, type RetrievedTask } from "./retrieval";
+
+// Only inject retrieved tasks that are actually relevant to the question.
+// Cosine similarity below this is treated as noise and dropped.
+const RAG_MIN_SIMILARITY = 0.4;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -52,8 +57,20 @@ export async function classifyIntent(
 function buildPrompt(
   history: { role: string; content: string }[],
   userMessage: string,
+  tasks: RetrievedTask[],
 ) {
   let prompt = SYSTEM_CONTEXT + "\n\n";
+
+  // RAG: ground the reply in the user's real tasks (retrieved by similarity).
+  if (tasks.length > 0) {
+    prompt += "ข้อมูลงานของผู้ใช้ที่เกี่ยวข้องกับคำถามนี้ ";
+    prompt += "(ใช้ตอบเฉพาะเมื่อเกี่ยวข้องจริง ห้ามแต่งข้อมูลที่ไม่มีในนี้):\n";
+    tasks.forEach((t) => {
+      const status = t.completed ? "เสร็จแล้ว" : "ยังไม่เสร็จ";
+      prompt += `- [${t.cardTitle}] ${t.text} (สถานะ: ${status})\n`;
+    });
+    prompt += "\n";
+  }
 
   history.forEach((msg) => {
     if (msg.role === "user") {
@@ -71,7 +88,18 @@ function buildPrompt(
 export async function askAI(userId: string, userMessage: string) {
   const history = await getRecentMessages(userId);
 
-  const prompt = buildPrompt(history, userMessage);
+  // Retrieve the user's most relevant tasks for this message. RAG failures
+  // (e.g. embedding API hiccup) must not break normal chat, so fall back
+  // to an empty context.
+  let tasks: RetrievedTask[] = [];
+  try {
+    const retrieved = await retrieveRelevantTasks(userId, userMessage, 5);
+    tasks = retrieved.filter((t) => t.similarity >= RAG_MIN_SIMILARITY);
+  } catch (error) {
+    console.error("RAG retrieval failed, continuing without context:", error);
+  }
+
+  const prompt = buildPrompt(history, userMessage, tasks);
 
   const result = await model.generateContent(prompt);
 

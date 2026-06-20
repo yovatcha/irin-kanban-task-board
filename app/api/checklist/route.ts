@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { sendTaskAssignmentNotification } from "@/lib/line";
+import { indexChecklistItem } from "@/lib/retrieval";
 
 // POST /api/checklist - Create new checklist item
 export async function POST(request: NextRequest) {
@@ -29,6 +30,17 @@ export async function POST(request: NextRequest) {
         card: true,
       },
     });
+
+    // RAG: index the new task so it's searchable by meaning. Non-fatal.
+    try {
+      await indexChecklistItem(
+        checklist.id,
+        checklist.text,
+        checklist.card.title,
+      );
+    } catch (error) {
+      console.error("Failed to index checklist item:", error);
+    }
 
     // Send LINE notification if assigned to a user
     if (assignedToUserId) {
@@ -92,6 +104,20 @@ export async function PUT(request: NextRequest) {
         card: true,
       },
     });
+
+    // RAG: re-index when the task text changes, so the embedding stays in
+    // sync with the content. Non-fatal.
+    if (text !== undefined && text !== currentItem?.text) {
+      try {
+        await indexChecklistItem(
+          checklist.id,
+          checklist.text,
+          checklist.card.title,
+        );
+      } catch (error) {
+        console.error("Failed to re-index checklist item:", error);
+      }
+    }
 
     // Send LINE notification if newly assigned to a user
     if (

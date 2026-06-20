@@ -50,13 +50,16 @@ model Card {
 }
 
 model ChecklistItem {
-  id               String  @id @default(cuid())
+  id               String                       @id @default(cuid())
   cardId           String
   text             String
-  completed        Boolean @default(false)
+  completed        Boolean                      @default(false)
   assignedToUserId String?
-  assignedTo       User?   @relation(fields: [assignedToUserId], references: [id])
-  card             Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  assignedTo       User?                        @relation(fields: [assignedToUserId], references: [id])
+  card             Card                         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  // RAG: semantic embedding of "{card title}: {text}". Managed via raw SQL,
+  // since Prisma has no native vector type — see lib/retrieval.ts.
+  embedding        Unsupported("vector(768)")?
 
   @@index([cardId])
   @@index([assignedToUserId])
